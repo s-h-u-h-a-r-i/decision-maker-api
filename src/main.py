@@ -1,16 +1,16 @@
-from src.config import create_app
-from src.config import settings
+from fastapi import FastAPI
 
+app = FastAPI(
+    title="Decision Maker API",
+    description="API for decision making app",
+    version="0.1.0"
+)
 
-app = create_app()
-
+@app.get("/")
+async def root():
+    return {"message": "Decisin Maker API"}
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(
-        app="src.main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=settings.is_dev,
-    )
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

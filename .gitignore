@@ -1,11 +1,3 @@
-# Virtual Environment
 .venv/
 
-# Editor
 .vscode/settings.json
-
-# Python Cache
-__pycache__/
-
-# .env Files
-.env
