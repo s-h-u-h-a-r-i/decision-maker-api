@@ -66,6 +66,27 @@ class EnvironmentVariable(Generic[T]):
         self._converter = converter
 
     def get_validated_value(self, current_mode: Optional[Mode] = None) -> T:
+        """
+        ### Retrieves and validates the value of an environment variable based on the current mode.
+
+        This method attempts to retrieve the value of the environment variable specified by `_key`.
+        If the value is not found, it checks for a default value or a mode conditional default value
+        based on the current mode. If the value is found, it validates the value using a provided
+        validator function if available. If validation fails, an EnvironmentError is raised.
+        Finally, the validated value is converted to the expected type using a provided converter
+        function and returned.
+
+        Args:
+            `current_mode` (Optional[Mode]): The current mode of the application, used to determine
+            which default value to apply if the environment variable is not found.
+
+        Returns:
+            `T`: The validated and converted value of the environment variable.
+
+        Raises:
+            `EnvironmentError`: If the environment variable is not found and no default value is available,
+            or if the validation of the value fails.
+        """
         raw_value = os.getenv(self._key)
 
         if raw_value is None:
@@ -91,6 +112,18 @@ class EnvironmentVariable(Generic[T]):
         return self._converter(raw_value)
 
     def _handle_raw_value_none(self, current_mode: Optional[Mode]) -> T:
+        """
+        ### Handles the case where the raw value of the environment variable is None.
+
+        This method checks for a default value or a mode conditional default value
+        based on the current mode. If neither is available, it raises an EnvironmentError.
+
+        Args:
+            `current_mode` (Optional[Mode]): The current mode of the application.
+
+        Returns:
+            `T`: The default or mode conditional default value if available, otherwise raises an EnvironmentError.
+        """
         if self._default is not None:
             return self._default
 
@@ -184,7 +217,7 @@ def get_settings() -> Settings:
 
 def reload_settings() -> None:
     """
-    Force reload of all settings from environment variables.
+    ### Force reload of all settings from environment variables.
 
     Call this when you need to ensure latest values,
     such as after environment variables have been updated.

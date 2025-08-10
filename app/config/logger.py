@@ -113,12 +113,27 @@ class RichFormatter(logging.Formatter):
 
 
 def setup_logging() -> None:
-    """Configure logging based on environment settings."""
+    """
+    ### Configures the logging setup based on the application mode.
+
+    #### Development Mode:
+    - This function sets up the logging configuration dynamically based on the application mode.
+    - In development mode, it uses a RichHandler with a RichFormatter to display logs in a more
+    visually appealing format.
+
+    #### Production Mode:
+    - In production mode, it uses a StreamHandler with a JsonFormatter to output logs in JSON format.
+    - Additionally, it sets the logging level and suppresses verbose logging from specific libraries
+    and modules related to file monitoring.
+    """
+    from .settings import Mode
+
     handler: Union[RichHandler, logging.StreamHandler[Union[TextIO, Any]]]
     formatter: Union[RichFormatter, JsonFormatter]
 
     def is_development() -> bool:
-        return os.getenv("MODE") == "development"
+        """Checks if the application is running in development mode."""
+        return os.getenv("MODE") == Mode.DEVELOPMENT
 
     if is_development():
         handler = RichHandler(
