@@ -2,10 +2,14 @@ import sys
 import json as json_module
 import logging
 import logging.config
-from typing import Dict, Any, Union
+from typing import Dict, Any, Union, TextIO
 from datetime import datetime, timezone
 
 from pythonjsonlogger import json
+from rich.logging import RichHandler
+from rich.console import Console
+from rich.pretty import Pretty
+from rich.segment import Segment
 
 
 class JsonFormatter(json.JsonFormatter):
@@ -49,89 +53,82 @@ class JsonFormatter(json.JsonFormatter):
         log_record.pop("created", None)
 
 
-class PrettyFormatter(logging.Formatter):
-    """Custom pretty formatter with format: [<datetime> <level> | <file:line> | <message>]"""
+class RichFormatter(logging.Formatter):
+    """Rich formatter that handles extra fields beautifully"""
 
-    COLORS = {
-        "DEBUG": "\033[36m",  # Cyan
-        "INFO": "\033[32m",  # Green
-        "WARNING": "\033[33m",  # Yellow
-        "ERROR": "\033[31m",  # Red
-        "CRITICAL": "\033[35m",  # Magenta
-    }
-
-    DIM = "\033[2m"  # Dim text
-    RESET = "\033[0m"  # Reset colors
+    def __init__(self) -> None:
+        super().__init__()
+        self.console = Console(file=sys.stdout, force_terminal=True)
 
     def format(self, record: logging.LogRecord) -> str:
-        timestamp = datetime.fromtimestamp(record.created).strftime("%H:%M:%S.%f")[:-3]
-        dimmed_timestamp = f"{self.DIM}[{timestamp}]{self.RESET}"
-
-        level_color = self.COLORS.get(record.levelname, "")
-        colored_level = f"{level_color}{record.levelname:<8}{self.RESET}"
-
-        file_location = f"{record.filename}:{record.lineno}"
-        dimmed_location = f"{self.DIM}{file_location:<22}{self.RESET}"
-
         message = record.getMessage()
 
-        extra_info = ""
-        if hasattr(record, "__dict__"):
-            standard_fields = {
-                "name",
-                "msg",
-                "args",
-                "levelname",
-                "levelno",
-                "pathname",
-                "filename",
-                "module",
-                "lineno",
-                "funcName",
-                "created",
-                "msecs",
-                "relativeCreated",
-                "thread",
-                "threadName",
-                "processName",
-                "process",
-                "message",
-                "exc_info",
-                "exc_text",
-                "stack_info",
-                "getMessage",
-                "taskName",
-            }
+        standard_fields = {
+            "name",
+            "msg",
+            "args",
+            "levelname",
+            "levelno",
+            "pathname",
+            "filename",
+            "module",
+            "lineno",
+            "funcName",
+            "created",
+            "msecs",
+            "relativeCreated",
+            "thread",
+            "threadName",
+            "processName",
+            "process",
+            "message",
+            "exc_info",
+            "exc_text",
+            "stack_info",
+            "getMessage",
+            "taskName",
+        }
 
-            extra_fields: Dict[str, Any] = {}
-            for key, value in record.__dict__.items():
-                if key not in standard_fields and not key.startswith("_"):
-                    extra_fields[key] = value
+        extra_fields: Dict[str, Any] = {}
+        for key, value in record.__dict__.items():
+            if key not in standard_fields and not key.startswith("_"):
+                extra_fields[key] = value
 
-            if extra_fields:
-                try:
-                    json_str = json_module.dumps(extra_fields, indent=2, default=str)
-                    formatted_json = f"{self.DIM}{json_str}{self.RESET}"
-                    if "\n" in json_str:
-                        extra_info = f"\n{formatted_json}"
-                    else:
-                        extra_info = f" {formatted_json}"
-                except (TypeError, ValueError):
-                    extra_str = ", ".join([f"{k}={v}" for k, v in extra_fields.items()])
-                    extra_info = f" {self.DIM}[{extra_str}]{self.RESET}"
+        if extra_fields:
+            extra_str = Pretty(extra_fields, expand_all=True).__rich_console__(
+                self.console, self.console.options
+            )
+            extra_formatted = ""
+            for segment in extra_str:
+                if isinstance(segment, Segment):
+                    extra_formatted += segment.text
+                else:
+                    # Handle other types that might be returned
+                    extra_formatted += str(segment)
 
-        return f"{dimmed_timestamp} {colored_level} | {dimmed_location} | {message}{extra_info}"
+            return f"{message}\n{extra_formatted}" if extra_formatted else message
+
+        return message
 
 
 def setup_logging() -> None:
     """Configure logging based on environment settings."""
     from .settings import settings
 
-    formatter: Union[PrettyFormatter, JsonFormatter]
+    handler: Union[RichHandler, logging.StreamHandler[Union[TextIO, Any]]]
+    formatter: Union[RichFormatter, JsonFormatter]
 
     if settings.is_development:
-        formatter = PrettyFormatter()
-        handler = logging.StreamHandler(sys.stdout)
+        handler = RichHandler(
+            console=Console(file=sys.stdout, force_terminal=True),
+            show_time=True,
+            show_level=True,
+            show_path=True,
+            rich_tracebacks=True,
+            tracebacks_show_locals=True,
+            markup=True,
+        )
+        formatter = RichFormatter()
         handler.setFormatter(formatter)
     else:
         formatter = JsonFormatter(
@@ -155,24 +152,23 @@ def setup_logging() -> None:
         force=True,
     )
 
+    # Suppress verbose logging from various libraries
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.error").setLevel(logging.INFO)
     logging.getLogger("fastapi").setLevel(logging.INFO)
+    logging.getLogger("watchdog").setLevel(logging.WARNING)
+    logging.getLogger("watchdog.observers").setLevel(logging.WARNING)
+    logging.getLogger("watchdog.events").setLevel(logging.WARNING)
+
+    # Suppress any other file monitoring related logs
+    for logger_name in logging.Logger.manager.loggerDict:
+        if any(
+            keyword in logger_name.lower()
+            for keyword in ["watch", "file", "monitor", "reload"]
+        ):
+            logging.getLogger(logger_name).setLevel(logging.WARNING)
 
     logger = logging.getLogger(__name__)
-    logger.info(
-        f"Logging configured",
-        extra={
-            "mode": settings.mode,
-            "log_level": log_level,
-            "gcp_project_id": settings.gcp_project_id,
-        },
-    )
-
-    logger.debug(
-        f"This is a debug message that will be really long in the terminal because of how long this message will be and I do not know if it will be in the proper format. I think I will haev to make this even longer becuase of how much the terminal is able to handle.",
-        extra={"test": True, "debug": True},
-    )
 
 
 __all__ = ["setup_logging"]
