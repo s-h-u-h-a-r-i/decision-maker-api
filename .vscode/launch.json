@@ -5,10 +5,15 @@
       "name": "FastAPI: Debug Server",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/src/main.py",
+      "module": "app.main",
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "env": {},
+      "env": {
+        "MODE": "development",
+        "HOST": "127.0.0.1",
+        "PORT": "8080",
+        "GCP_PROJECT_ID": "decision-maker-5c9a6"
+      },
       "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "args": [],
       "justMyCode": true,
