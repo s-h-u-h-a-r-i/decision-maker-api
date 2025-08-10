@@ -2,7 +2,9 @@ import os
 import logging
 from enum import StrEnum, auto
 from typing import Generic, TypeVar, Optional, Callable, cast
+from functools import lru_cache, _CacheInfo
 
+logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -64,8 +66,6 @@ class EnvironmentVariable(Generic[T]):
         self._converter = converter
 
     def get_validated_value(self, current_mode: Optional[Mode] = None) -> T:
-        logger = logging.getLogger(__name__)
-
         raw_value = os.getenv(self._key)
 
         if raw_value is None:
@@ -177,14 +177,35 @@ class Settings:
         return self._mode == Mode.PRODUCTION
 
 
-_settings_instance: Optional[Settings] = None
-
-
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    global _settings_instance
-    if _settings_instance is None:
-        _settings_instance = Settings()
-    return _settings_instance
+    return Settings()
 
 
-__all__ = ["get_settings"]
+def reload_settings() -> None:
+    """
+    Force reload of all settings from environment variables.
+
+    Call this when you need to ensure latest values,
+    such as after environment variables have been updated.
+    """
+    logger.debug("Reloading settings = clearing cache")
+    get_settings.cache_clear()
+
+
+def is_settings_cached() -> bool:
+    """Check if settings are currently cached."""
+    return bool(get_settings.cache_info().currsize)
+
+
+def get_settings_cache_info() -> _CacheInfo:
+    """Get cache statistics for debugging."""
+    return get_settings.cache_info()
+
+
+__all__ = [
+    "get_settings",
+    "reload_settings",
+    "is_settings_cached",
+    "get_settings_cache_info",
+]

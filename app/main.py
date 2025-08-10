@@ -33,11 +33,6 @@ async def root() -> dict[str, str]:
 if __name__ == "__main__":
     import uvicorn
 
-    logger.info(
-        "Starting Decision Maker API",
-        extra={"host": settings.host, "port": settings.port},
-    )
-
     uvicorn.run(
         "app.main:app",
         host=settings.host,
