@@ -159,6 +159,7 @@ def setup_logging() -> None:
     logging.getLogger("watchdog").setLevel(logging.WARNING)
     logging.getLogger("watchdog.observers").setLevel(logging.WARNING)
     logging.getLogger("watchdog.events").setLevel(logging.WARNING)
+    logging.getLogger("watchfiles.main").setLevel(logging.WARNING)
 
     # Suppress any other file monitoring related logs
     for logger_name in logging.Logger.manager.loggerDict:
