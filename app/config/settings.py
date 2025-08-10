@@ -177,6 +177,14 @@ class Settings:
         return self._mode == Mode.PRODUCTION
 
 
-settings = Settings()
+_settings_instance: Optional[Settings] = None
 
-__all__ = ["settings"]
+
+def get_settings() -> Settings:
+    global _settings_instance
+    if _settings_instance is None:
+        _settings_instance = Settings()
+    return _settings_instance
+
+
+__all__ = ["get_settings"]

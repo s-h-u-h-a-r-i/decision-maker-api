@@ -1,5 +1,5 @@
 import sys
-import json as json_module
+import os
 import logging
 import logging.config
 from typing import Dict, Any, Union, TextIO
@@ -21,7 +21,7 @@ class JsonFormatter(json.JsonFormatter):
         record: logging.LogRecord,
         message_dict: Dict[str, Any],
     ) -> None:
-        from .settings import settings
+        from .settings import get_settings
 
         super().add_fields(log_record, record, message_dict)
 
@@ -38,6 +38,7 @@ class JsonFormatter(json.JsonFormatter):
         }
         log_record["severity"] = severity_mapping.get(record.levelname, "INFO")
 
+        settings = get_settings()
         log_record["sourceLocation"] = {
             "file": record.pathname,
             "line": record.lineno,
@@ -113,12 +114,13 @@ class RichFormatter(logging.Formatter):
 
 def setup_logging() -> None:
     """Configure logging based on environment settings."""
-    from .settings import settings
-
     handler: Union[RichHandler, logging.StreamHandler[Union[TextIO, Any]]]
     formatter: Union[RichFormatter, JsonFormatter]
 
-    if settings.is_development:
+    def is_development() -> bool:
+        return os.getenv("MODE") == "development"
+
+    if is_development():
         handler = RichHandler(
             console=Console(file=sys.stdout, force_terminal=True),
             show_time=True,
@@ -144,7 +146,7 @@ def setup_logging() -> None:
         handler = logging.StreamHandler(sys.stdout)
         handler.setFormatter(formatter)
 
-    log_level = logging.DEBUG if settings.is_development else logging.INFO
+    log_level = logging.DEBUG if is_development() else logging.INFO
 
     logging.basicConfig(
         level=log_level,
@@ -168,8 +170,6 @@ def setup_logging() -> None:
             for keyword in ["watch", "file", "monitor", "reload"]
         ):
             logging.getLogger(logger_name).setLevel(logging.WARNING)
-
-    logger = logging.getLogger(__name__)
 
 
 __all__ = ["setup_logging"]
