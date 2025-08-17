@@ -2,7 +2,7 @@ import sys
 import os
 import logging
 import logging.config
-from typing import Dict, Any, Union, TextIO
+from typing import Dict, Any, Union, TextIO, List
 from datetime import datetime, timezone
 
 from pythonjsonlogger import json
@@ -10,6 +10,8 @@ from rich.logging import RichHandler
 from rich.console import Console
 from rich.pretty import Pretty
 from rich.segment import Segment
+
+from app.config import Settings
 
 
 class JsonFormatter(json.JsonFormatter):
@@ -23,13 +25,15 @@ class JsonFormatter(json.JsonFormatter):
     ) -> None:
         from .settings import get_settings
 
-        super().add_fields(log_record, record, message_dict)
+        super().add_fields(
+            log_record=log_record, record=record, message_dict=message_dict
+        )
 
         log_record["timestamp"] = datetime.fromtimestamp(
-            record.created, tz=timezone.utc
+            timestamp=record.created, tz=timezone.utc
         ).isoformat()
 
-        severity_mapping = {
+        severity_mapping: Dict[str, str] = {
             "DEBUG": "DEBUG",
             "INFO": "INFO",
             "WARNING": "WARNING",
@@ -38,7 +42,7 @@ class JsonFormatter(json.JsonFormatter):
         }
         log_record["severity"] = severity_mapping.get(record.levelname, "INFO")
 
-        settings = get_settings()
+        settings: Settings = get_settings()
         log_record["sourceLocation"] = {
             "file": record.pathname,
             "line": record.lineno,
@@ -62,9 +66,9 @@ class RichFormatter(logging.Formatter):
         self.console = Console(file=sys.stdout, force_terminal=True)
 
     def format(self, record: logging.LogRecord) -> str:
-        message = record.getMessage()
+        message: str = record.getMessage()
 
-        standard_fields = {
+        standard_fields: set[str] = {
             "name",
             "msg",
             "args",
@@ -97,9 +101,9 @@ class RichFormatter(logging.Formatter):
 
         if extra_fields:
             extra_str = Pretty(extra_fields, expand_all=True).__rich_console__(
-                self.console, self.console.options
+                console=self.console, options=self.console.options
             )
-            extra_formatted = ""
+            extra_formatted: str = ""
             for segment in extra_str:
                 if isinstance(segment, Segment):
                     extra_formatted += segment.text
@@ -161,7 +165,7 @@ def setup_logging() -> None:
         handler = logging.StreamHandler(sys.stdout)
         handler.setFormatter(formatter)
 
-    log_level = logging.DEBUG if is_development() else logging.INFO
+    log_level: int = logging.DEBUG if is_development() else logging.INFO
 
     logging.basicConfig(
         level=log_level,
@@ -187,4 +191,4 @@ def setup_logging() -> None:
             logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 
-__all__ = ["setup_logging"]
+__all__: List[str] = ["setup_logging"]

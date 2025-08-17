@@ -1,10 +1,10 @@
 import os
 import logging
 from enum import StrEnum, auto
-from typing import Generic, TypeVar, Optional, Callable, cast
+from typing import Generic, TypeVar, Optional, Callable, cast, List, Union
 from functools import lru_cache, _CacheInfo
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
@@ -28,7 +28,7 @@ class ModeConditionalDefault(Generic[T]):
     value: T
     allowed_modes: set[Mode]
 
-    def __init__(self, value: T, allowed_modes: set[Mode] | Mode):
+    def __init__(self, value: T, allowed_modes: set[Mode] | Mode) -> None:
         self.value = value
         if isinstance(allowed_modes, Mode):
             self.allowed_modes = {allowed_modes}
@@ -87,19 +87,19 @@ class EnvironmentVariable(Generic[T]):
             `EnvironmentError`: If the environment variable is not found and no default value is available,
             or if the validation of the value fails.
         """
-        raw_value = os.getenv(self._key)
+        raw_value: Union[str, None] = os.getenv(self._key)
 
         if raw_value is None:
             logger.debug(
                 f"Environment variable '{self._key}' not found, checking defaults"
             )
-            return self._handle_raw_value_none(current_mode)
+            return self._handle_raw_value_none(current_mode=current_mode)
 
         if raw_value == "":
             raise EnvironmentError(f"Environment variable '{self._key}' is empty")
 
         if self._validator is not None and not self._validator(raw_value):
-            error_message = f"validation failed for '{self._key}'."
+            error_message: str = f"validation failed for '{self._key}'."
             if not self._sensitive:
                 error_message += f" raw_value: {raw_value}"
             raise EnvironmentError(error_message)
@@ -130,11 +130,11 @@ class EnvironmentVariable(Generic[T]):
         if (
             self._mode_conditional_default is not None
             and current_mode is not None
-            and self._mode_conditional_default.should_apply(current_mode)
+            and self._mode_conditional_default.should_apply(current_mode=current_mode)
         ):
             return self._mode_conditional_default.value
 
-        mode_context = f" (current_mode: {current_mode})" if current_mode else ""
+        mode_context: str = f" (current_mode: {current_mode})" if current_mode else ""
         raise EnvironmentError(
             f"{self._key} environment variable is required{mode_context}. "
             "No default value is available for this mode."
@@ -157,17 +157,19 @@ class Settings:
             Key.HOST,
             sensitive=False,
             mode_conditional_default=ModeConditionalDefault(
-                "0.0.0.0", Mode.DEVELOPMENT
+                value="0.0.0.0", allowed_modes=Mode.DEVELOPMENT
             ),
-        ).get_validated_value(self.mode)
+        ).get_validated_value(current_mode=self.mode)
 
         self._port = EnvironmentVariable[int](
             Key.PORT,
             sensitive=False,
-            mode_conditional_default=ModeConditionalDefault(8000, Mode.DEVELOPMENT),
+            mode_conditional_default=ModeConditionalDefault(
+                value=8000, allowed_modes=Mode.DEVELOPMENT
+            ),
             validator=lambda x: x.isdigit() and 1 <= int(x) <= 65535,
             converter=int,
-        ).get_validated_value(self.mode)
+        ).get_validated_value(current_mode=self.mode)
 
         self._gcp_project_id = EnvironmentVariable[str](
             Key.GCP_PROJECT_ID, sensitive=False
@@ -177,9 +179,9 @@ class Settings:
             Key.GCP_RESOURCE_TYPE,
             sensitive=False,
             mode_conditional_default=ModeConditionalDefault(
-                "cloud_run_revision", Mode.DEVELOPMENT
+                value="cloud_run_revision", allowed_modes=Mode.DEVELOPMENT
             ),
-        ).get_validated_value(self.mode)
+        ).get_validated_value(current_mode=self.mode)
 
     @property
     def mode(self) -> Mode:
@@ -236,7 +238,8 @@ def get_settings_cache_info() -> _CacheInfo:
     return get_settings.cache_info()
 
 
-__all__ = [
+__all__: List[str] = [
+    "Settings",
     "get_settings",
     "reload_settings",
     "is_settings_cached",
