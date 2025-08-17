@@ -25,11 +25,15 @@ class Mode(StrEnum):
 class ModeConditionalDefault(Generic[T]):
     """Represents a default value that should only be applied in specific modes."""
 
-    value: T
+    _value: T
     allowed_modes: set[Mode]
 
+    @property
+    def value(self) -> T:
+        return self._value
+
     def __init__(self, value: T, allowed_modes: set[Mode] | Mode) -> None:
-        self.value = value
+        self._value = value
         if isinstance(allowed_modes, Mode):
             self.allowed_modes = {allowed_modes}
         else:
