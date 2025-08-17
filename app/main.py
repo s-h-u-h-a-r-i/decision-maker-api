@@ -3,7 +3,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import setup_logging, get_settings, Settings
+from app.configs import setup_logging, get_settings, Settings
 
 setup_logging()
 settings: Settings = get_settings()
