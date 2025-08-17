@@ -11,8 +11,6 @@ from rich.console import Console
 from rich.pretty import Pretty
 from rich.segment import Segment
 
-from app.config import Settings
-
 
 class JsonFormatter(json.JsonFormatter):
     """Custom JSON formatter"""
@@ -23,7 +21,7 @@ class JsonFormatter(json.JsonFormatter):
         record: logging.LogRecord,
         message_dict: Dict[str, Any],
     ) -> None:
-        from .settings import get_settings
+        from .settings import get_settings, Settings
 
         super().add_fields(
             log_record=log_record, record=record, message_dict=message_dict
