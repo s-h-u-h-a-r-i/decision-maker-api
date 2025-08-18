@@ -81,8 +81,8 @@ class EnvironmentVariable(Generic[T]):
         function and returned.
 
         Args:
-            `current_mode` (Optional[Mode]): The current mode of the application, used to determine
-            which default value to apply if the environment variable is not found.
+            current_mode: The current mode of the application, used to determine
+                which default value to apply if the environment variable is not found.
 
         Returns:
             `T`: The validated and converted value of the environment variable.
@@ -108,10 +108,10 @@ class EnvironmentVariable(Generic[T]):
                 error_message += f" raw_value: {raw_value}"
             raise EnvironmentError(error_message)
 
-        if not self._sensitive:
-            logger.debug(f"Loaded '{self._key}' from environment: {raw_value}")
-        else:
+        if self._sensitive:
             logger.debug(f"Loaded sensitive variable '{self._key}' from environment")
+        else:
+            logger.debug(f"Loaded '{self._key}' from environment: {raw_value}")
 
         return self._converter(raw_value)
 
